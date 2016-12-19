@@ -20,19 +20,20 @@ import java.util.List;
 public class ServiceLoading extends IntentService {
 
   public static final String RSS_URL = "http://rss.cnn.com/rss/cnn_topstories.rss";
+  public static final String SERVICE_NAME = "LoadingRSS";
   private boolean running = false;
 
   public ServiceLoading(String name) {
     super(name);
-    Log.d("CREATGE", "start");
+  }
+  public ServiceLoading() {
+    super(SERVICE_NAME);
   }
 
   @Override
   protected void onHandleIntent(Intent intent) {
-    Log.d("onRefresh", "start0");
     if (!running) {
       running = true;
-      Log.d("onRefresh", "start2");
       // Initializing instance variables
       List<String> headlines = new ArrayList();
       List<String> links = new ArrayList();
@@ -72,7 +73,7 @@ public class ServiceLoading extends IntentService {
         e.printStackTrace();
       }
       Log.d("onRefresh", "middle");
-      RSSReaderDbHelper dbHelper = new RSSReaderDbHelper(null, RSSReaderDbHelper.DATABASE_NAME, null, RSSReaderDbHelper.DATABASE_VERSION);
+      RSSReaderDbHelper dbHelper = new RSSReaderDbHelper(getApplicationContext(), RSSReaderDbHelper.DATABASE_NAME, null, RSSReaderDbHelper.DATABASE_VERSION);
       SQLiteDatabase db = dbHelper.getWritableDatabase();
       db.execSQL(RSSReaderDbHelper.SQL_DELETE_ENTRIES);
       db.execSQL(RSSReaderDbHelper.SQL_CREATE_ENTRIES);
@@ -84,7 +85,6 @@ public class ServiceLoading extends IntentService {
         values.put(RSSReaderContract.RSSEntry.COLUMN_NAME_DESCRIPTION, descriptions.get(i));
         db.insert(RSSReaderContract.RSSEntry.TABLE_NAME, null, values);
       }
-      // db.close();
       Log.d("onRefresh", "finish");
       Intent intentFinished = new Intent(FragmentList.ACTION_LOAD);
       sendBroadcast(intentFinished);

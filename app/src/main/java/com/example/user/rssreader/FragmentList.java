@@ -24,6 +24,7 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
   private SwipeRefreshLayout refreshLayout;
   private boolean isFirstLaunch = true;
   public static String ACTION_LOAD = "loading";
+  private BroadcastReceiver receiver;
 
 
   @Nullable
@@ -38,13 +39,14 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
     super.onCreate(savedInstanceState);
     setupCursorAdapter();
     IntentFilter filter = new IntentFilter(ACTION_LOAD);
-    getActivity().registerReceiver(new BroadcastReceiver() {
+    receiver = new BroadcastReceiver() {
       @Override
       public void onReceive(Context context, Intent intent) {
         Log.d("receiver", "1");
         loadRssFromDb();
       }
-    }, filter);
+    };
+    getActivity().registerReceiver(receiver, filter);
 
     loadRssFromDb();
     if (savedInstanceState == null) {
@@ -54,6 +56,12 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
 
   }
 
+  @Override
+  public void onDestroy() {
+    getActivity().unregisterReceiver(receiver);
+    super.onDestroy();
+  }
+
   private void setupCursorAdapter() {
     String[] uiBindFrom = {RSSReaderContract.RSSEntry.COLUMN_NAME_TITLE};
     int[] uiBindTo = {R.id.title_view};
@@ -61,6 +69,19 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
             getActivity(), R.layout.i_titles_list_item,
             null, uiBindFrom, uiBindTo,
             0);
+    titlesListAdapter.setOnClickLinkListener(new OnClickLinkListener() {
+      @Override
+      public void onClickLink(String link) {
+        FragmentDetail fragmentDetail = (FragmentDetail) getFragmentManager().findFragmentById(R.id.fragment_detail);
+        if (fragmentDetail != null && fragmentDetail.isInLayout()) {
+          fragmentDetail.goToLink(link);
+        } else {
+          Intent intent = new Intent(getActivity(), FragmentDetailActivity.class);
+          intent.putExtra(FragmentDetailActivity.EXTRA_SELECTED, link);
+          getActivity().startActivity(intent);
+        }
+      }
+    });
   }
 
   @Override
@@ -82,7 +103,8 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
 
         String[] projection = {
                 RSSReaderContract.RSSEntry._ID,
-                RSSReaderContract.RSSEntry.COLUMN_NAME_TITLE
+                RSSReaderContract.RSSEntry.COLUMN_NAME_TITLE,
+                RSSReaderContract.RSSEntry.COLUMN_NAME_LINK
         };
 
         final Cursor c = db.query(
@@ -116,7 +138,6 @@ public class FragmentList extends Fragment implements SwipeRefreshLayout.OnRefre
     if (!isFirstLaunch) {
       refreshLayout.setRefreshing(true);
     }
-
     Intent intent = new Intent(getActivity(), ServiceLoading.class);
     intent.setAction(ACTION_LOAD);
     getActivity().startService(intent);
